@@ -17,6 +17,5 @@ Construir una aplicación útil para el día a día de un desarrollador que perm
 - Convertir notas breves en tareas o issues más claros
 - Mantener una trazabilidad básica del avance del desarrollo
 
-
-## 6. Enfoque técnico
+## 5. Enfoque técnico
 El proyecto tendrá frontend y backend, y se desarrollará usando Claude Code como herramienta principal. Como base tecnológica, se priorizará el uso de Node.js y React, ya que son tecnologías con las que se tiene mayor experiencia.
