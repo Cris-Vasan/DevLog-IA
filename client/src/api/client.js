@@ -37,3 +37,12 @@ export const tasksApi = {
     apiFetch(`/api/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   remove: (id) => apiFetch(`/api/tasks/${id}`, { method: 'DELETE' }),
 };
+
+export const sessionsApi = {
+  list: (projectId) => apiFetch(`/api/projects/${projectId}/sessions`),
+  create: (projectId, data) =>
+    apiFetch(`/api/projects/${projectId}/sessions`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) =>
+    apiFetch(`/api/sessions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id) => apiFetch(`/api/sessions/${id}`, { method: 'DELETE' }),
+};

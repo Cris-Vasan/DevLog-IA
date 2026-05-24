@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useProject } from '../hooks/useProjects';
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '../hooks/useTasks';
+import { useSessions, useCreateSession, useUpdateSession, useDeleteSession } from '../hooks/useSessions';
 import { Button } from '@/components/ui/button';
 
 const PRIORITIES = ['low', 'medium', 'high'];
@@ -138,6 +139,87 @@ function TaskCard({ task, onStatusChange, onEdit, onDelete }) {
   );
 }
 
+function SessionForm({ initial = {}, onSubmit, onCancel, loading }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(initial.date || today);
+  const [duration, setDuration] = useState(initial.duration_minutes || 60);
+  const [description, setDescription] = useState(initial.description || '');
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!date || !description.trim() || !duration) return;
+    onSubmit({ date, duration_minutes: Number(duration), description: description.trim() });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <label className="block text-xs text-slate-500 mb-1">Date *</label>
+          <input
+            type="date"
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="w-36">
+          <label className="block text-xs text-slate-500 mb-1">Duration (min) *</label>
+          <input
+            type="number"
+            min="1"
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            required
+          />
+        </div>
+      </div>
+      <textarea
+        className="border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 resize-none"
+        placeholder="What did you work on? *"
+        rows={3}
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        required
+      />
+      <div className="flex gap-2 justify-end">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={loading || !date || !description.trim() || !duration}>
+          {loading ? 'Saving…' : 'Save'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function SessionCard({ session, onEdit, onDelete }) {
+  const mins = session.duration_minutes;
+  const duration = mins >= 60
+    ? `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? `${mins % 60}m` : ''}`.trim()
+    : `${mins}m`;
+
+  return (
+    <div className="bg-white rounded-lg border border-slate-200 p-4 flex flex-col gap-1 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <span className="font-medium text-slate-700">{session.date}</span>
+          <span className="text-slate-300">·</span>
+          <span>{duration}</span>
+        </div>
+        <div className="flex gap-1 shrink-0">
+          <Button size="sm" variant="outline" onClick={() => onEdit(session)}>Edit</Button>
+          <Button size="sm" variant="destructive" onClick={() => onDelete(session)}>Delete</Button>
+        </div>
+      </div>
+      <p className="text-slate-600 text-sm">{session.description}</p>
+    </div>
+  );
+}
+
 export default function ProjectView() {
   const { id } = useParams();
   const { data: project, isLoading: loadingProject, isError: projectError } = useProject(id);
@@ -146,9 +228,18 @@ export default function ProjectView() {
   const updateTask = useUpdateTask(id);
   const deleteTask = useDeleteTask(id);
 
+  const { data: sessions = [], isLoading: loadingSessions } = useSessions(id);
+  const createSession = useCreateSession(id);
+  const updateSession = useUpdateSession(id);
+  const deleteSession = useDeleteSession(id);
+
   const [showCreate, setShowCreate] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [deletingTask, setDeletingTask] = useState(null);
+
+  const [showCreateSession, setShowCreateSession] = useState(false);
+  const [editingSession, setEditingSession] = useState(null);
+  const [deletingSession, setDeletingSession] = useState(null);
 
   if (loadingProject) {
     return <div className="min-h-screen flex items-center justify-center text-slate-500">Loading…</div>;
@@ -177,6 +268,18 @@ export default function ProjectView() {
 
   function handleDelete() {
     deleteTask.mutate(deletingTask.id, { onSuccess: () => setDeletingTask(null) });
+  }
+
+  function handleCreateSession(data) {
+    createSession.mutate(data, { onSuccess: () => setShowCreateSession(false) });
+  }
+
+  function handleEditSession(data) {
+    updateSession.mutate({ id: editingSession.id, ...data }, { onSuccess: () => setEditingSession(null) });
+  }
+
+  function handleDeleteSession() {
+    deleteSession.mutate(deletingSession.id, { onSuccess: () => setDeletingSession(null) });
   }
 
   const tasksByStatus = STATUSES.reduce((acc, s) => {
@@ -235,6 +338,29 @@ export default function ProjectView() {
             ))}
           </div>
         )}
+        {/* Sessions section */}
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-slate-800">Work Sessions</h2>
+            <Button variant="outline" onClick={() => setShowCreateSession(true)}>Log Session</Button>
+          </div>
+          {loadingSessions ? (
+            <p className="text-slate-400 text-center py-8">Loading sessions…</p>
+          ) : sessions.length === 0 ? (
+            <p className="text-slate-400 text-center py-8">No sessions logged yet.</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {sessions.map((session) => (
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  onEdit={setEditingSession}
+                  onDelete={setDeletingSession}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {showCreate && (
@@ -271,6 +397,45 @@ export default function ProjectView() {
               disabled={deleteTask.isPending}
             >
               {deleteTask.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        </Modal>
+      )}
+
+      {showCreateSession && (
+        <Modal title="Log Session" onClose={() => setShowCreateSession(false)}>
+          <SessionForm
+            onSubmit={handleCreateSession}
+            onCancel={() => setShowCreateSession(false)}
+            loading={createSession.isPending}
+          />
+        </Modal>
+      )}
+
+      {editingSession && (
+        <Modal title="Edit Session" onClose={() => setEditingSession(null)}>
+          <SessionForm
+            initial={editingSession}
+            onSubmit={handleEditSession}
+            onCancel={() => setEditingSession(null)}
+            loading={updateSession.isPending}
+          />
+        </Modal>
+      )}
+
+      {deletingSession && (
+        <Modal title="Delete Session" onClose={() => setDeletingSession(null)}>
+          <p className="text-slate-600 mb-6">
+            Delete session from <strong>{deletingSession.date}</strong>? This cannot be undone.
+          </p>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDeletingSession(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteSession}
+              disabled={deleteSession.isPending}
+            >
+              {deleteSession.isPending ? 'Deleting…' : 'Delete'}
             </Button>
           </div>
         </Modal>
