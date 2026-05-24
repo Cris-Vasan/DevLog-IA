@@ -58,13 +58,38 @@ function deleteTask(db, id) {
   return result.changes > 0;
 }
 
+function validateTaskCreate({ title, priority, category } = {}) {
+  if (!title || !String(title).trim()) return { error: 'title is required' };
+  if (!priority) return { error: 'priority is required' };
+  if (!category) return { error: 'category is required' };
+  if (!VALID_PRIORITIES.includes(priority)) {
+    return { error: `priority must be one of: ${VALID_PRIORITIES.join(', ')}` };
+  }
+  if (!VALID_CATEGORIES.includes(category)) {
+    return { error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` };
+  }
+  return null;
+}
+
+function validateTaskUpdate({ priority, category, status } = {}) {
+  if (priority && !VALID_PRIORITIES.includes(priority)) {
+    return { error: `priority must be one of: ${VALID_PRIORITIES.join(', ')}` };
+  }
+  if (category && !VALID_CATEGORIES.includes(category)) {
+    return { error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` };
+  }
+  if (status && !VALID_STATUSES.includes(status)) {
+    return { error: `status must be one of: ${VALID_STATUSES.join(', ')}` };
+  }
+  return null;
+}
+
 module.exports = {
   listTasks,
   getTask,
   createTask,
   updateTask,
   deleteTask,
-  VALID_PRIORITIES,
-  VALID_CATEGORIES,
-  VALID_STATUSES,
+  validateTaskCreate,
+  validateTaskUpdate,
 };
