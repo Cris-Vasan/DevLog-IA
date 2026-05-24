@@ -114,6 +114,9 @@ export default function Dashboard() {
                     <p className="text-slate-500 text-sm mt-1 line-clamp-2">{project.description}</p>
                   )}
                 </div>
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <span>{project.task_count ?? 0} {project.task_count === 1 ? 'task' : 'tasks'}</span>
+                </div>
                 <div className="flex gap-2 mt-auto pt-2 border-t border-slate-100">
                   <Button
                     size="sm"

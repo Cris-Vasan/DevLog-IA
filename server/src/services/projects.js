@@ -1,7 +1,15 @@
 'use strict';
 
 function listProjects(db) {
-  return db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+  return db
+    .prepare(
+      `SELECT p.*, COUNT(t.id) AS task_count
+       FROM projects p
+       LEFT JOIN tasks t ON t.project_id = p.id
+       GROUP BY p.id
+       ORDER BY p.created_at DESC`
+    )
+    .all();
 }
 
 function getProject(db, id) {
