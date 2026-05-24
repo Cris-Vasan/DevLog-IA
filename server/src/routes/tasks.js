@@ -7,10 +7,8 @@ const {
   createTask,
   updateTask,
   deleteTask,
-  VALID_PRIORITIES,
-  VALID_CATEGORIES,
-  VALID_STATUSES,
 } = require('../services/tasks');
+const { VALID_PRIORITIES, VALID_CATEGORIES, VALID_STATUSES } = require('../constants');
 
 const router = Router();
 

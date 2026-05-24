@@ -1,8 +1,6 @@
 'use strict';
 
-const VALID_PRIORITIES = ['low', 'medium', 'high'];
-const VALID_CATEGORIES = ['bug', 'feature', 'refactor', 'docs', 'setup', 'research'];
-const VALID_STATUSES = ['pending', 'in_progress', 'done'];
+const { VALID_PRIORITIES, VALID_CATEGORIES, VALID_STATUSES } = require('../constants');
 
 function listTasks(db, projectId, filters = {}) {
   let sql = 'SELECT * FROM tasks WHERE project_id = ?';
