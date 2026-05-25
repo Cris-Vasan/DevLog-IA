@@ -158,4 +158,45 @@ describe('Sessions API', () => {
     const res = await request(app).delete('/api/sessions/99999');
     expect(res.status).to.equal(404);
   });
+
+  // ── task associations ─────────────────────────────────────────────────────
+
+  it('GET sessions response includes task_ids array', async () => {
+    await createSession();
+    const res = await request(app).get(`/api/projects/${projectId}/sessions`);
+    expect(res.status).to.equal(200);
+    expect(res.body[0]).to.have.property('task_ids').that.is.an('array');
+  });
+
+  it('POST with task_ids creates session_tasks associations', async () => {
+    const taskId = db
+      .prepare("INSERT INTO tasks (project_id, title, priority, category) VALUES (?, 'T', 'low', 'bug')")
+      .run(projectId).lastInsertRowid;
+
+    const res = await createSession(projectId, { task_ids: [taskId] });
+    expect(res.status).to.equal(201);
+    expect(res.body.task_ids).to.deep.equal([taskId]);
+  });
+
+  it('POST without task_ids returns task_ids: []', async () => {
+    const res = await createSession();
+    expect(res.status).to.equal(201);
+    expect(res.body.task_ids).to.deep.equal([]);
+  });
+
+  it('PUT with task_ids replaces session associations', async () => {
+    const t1 = db
+      .prepare("INSERT INTO tasks (project_id, title, priority, category) VALUES (?, 'Old', 'low', 'bug')")
+      .run(projectId).lastInsertRowid;
+    const t2 = db
+      .prepare("INSERT INTO tasks (project_id, title, priority, category) VALUES (?, 'New', 'low', 'bug')")
+      .run(projectId).lastInsertRowid;
+
+    const created = await createSession(projectId, { task_ids: [t1] });
+    const res = await request(app)
+      .put(`/api/sessions/${created.body.id}`)
+      .send({ task_ids: [t2] });
+    expect(res.status).to.equal(200);
+    expect(res.body.task_ids).to.deep.equal([t2]);
+  });
 });

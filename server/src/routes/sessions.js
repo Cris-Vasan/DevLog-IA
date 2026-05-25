@@ -16,7 +16,7 @@ module.exports = function sessionsRouter(db) {
   // POST /api/projects/:id/sessions
   router.post('/projects/:id/sessions', withProject, (req, res) => {
 
-    const { date, duration_minutes, description } = req.body;
+    const { date, duration_minutes, description, task_ids } = req.body;
 
     if (!date || !String(date).trim()) return res.status(400).json({ error: 'date is required' });
     if (duration_minutes === undefined || duration_minutes === null)
@@ -31,6 +31,7 @@ module.exports = function sessionsRouter(db) {
         date: String(date).trim(),
         duration_minutes,
         description: String(description).trim(),
+        task_ids: Array.isArray(task_ids) ? task_ids : [],
       })
     );
   });

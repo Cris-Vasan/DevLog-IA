@@ -11,6 +11,12 @@ const {
   deleteSession,
 } = require('../../src/services/sessions');
 
+function makeTask(db, projectId, title = 'Task') {
+  return db
+    .prepare("INSERT INTO tasks (project_id, title, priority, category) VALUES (?, ?, 'low', 'bug')")
+    .run(projectId, title).lastInsertRowid;
+}
+
 describe('sessions service', () => {
   let db;
   let projectId;
@@ -153,5 +159,103 @@ describe('sessions service', () => {
     deleteSession(db, session.id);
     const rows = db.prepare('SELECT * FROM session_tasks WHERE session_id = ?').all(session.id);
     expect(rows).to.have.lengthOf(0);
+  });
+
+  // ── task associations ─────────────────────────────────────────────────────
+
+  it('getSession returns task_ids: [] when no tasks are associated', () => {
+    const session = makeSession();
+    const found = getSession(db, session.id);
+    expect(found.task_ids).to.deep.equal([]);
+  });
+
+  it('getSession returns task_ids populated from session_tasks', () => {
+    const t1 = makeTask(db, projectId, 'A');
+    const t2 = makeTask(db, projectId, 'B');
+    const session = makeSession();
+    db.prepare('INSERT INTO session_tasks (session_id, task_id) VALUES (?, ?)').run(session.id, t1);
+    db.prepare('INSERT INTO session_tasks (session_id, task_id) VALUES (?, ?)').run(session.id, t2);
+    const found = getSession(db, session.id);
+    expect(found.task_ids).to.have.members([t1, t2]);
+  });
+
+  it('listSessions includes task_ids on each session', () => {
+    const t1 = makeTask(db, projectId, 'X');
+    const s1 = makeSession({ description: 'With task' });
+    const s2 = makeSession({ description: 'Without task' });
+    db.prepare('INSERT INTO session_tasks (session_id, task_id) VALUES (?, ?)').run(s1.id, t1);
+    const results = listSessions(db, projectId);
+    const withTask = results.find((s) => s.id === s1.id);
+    const without = results.find((s) => s.id === s2.id);
+    expect(withTask.task_ids).to.deep.equal([t1]);
+    expect(without.task_ids).to.deep.equal([]);
+  });
+
+  it('createSession with task_ids writes to session_tasks', () => {
+    const t1 = makeTask(db, projectId, 'Alpha');
+    const t2 = makeTask(db, projectId, 'Beta');
+    const session = createSession(db, projectId, {
+      date: '2026-05-24',
+      duration_minutes: 60,
+      description: 'With tasks',
+      task_ids: [t1, t2],
+    });
+    expect(session.task_ids).to.have.members([t1, t2]);
+  });
+
+  it('createSession without task_ids returns task_ids: []', () => {
+    const session = makeSession();
+    expect(session.task_ids).to.deep.equal([]);
+  });
+
+  it('updateSession with task_ids replaces existing associations', () => {
+    const t1 = makeTask(db, projectId, 'Old');
+    const t2 = makeTask(db, projectId, 'New');
+    const session = createSession(db, projectId, {
+      date: '2026-05-24',
+      duration_minutes: 30,
+      description: 'Start',
+      task_ids: [t1],
+    });
+    const updated = updateSession(db, session.id, { task_ids: [t2] });
+    expect(updated.task_ids).to.deep.equal([t2]);
+  });
+
+  it('updateSession with empty task_ids clears all associations', () => {
+    const t1 = makeTask(db, projectId, 'Clearable');
+    const session = createSession(db, projectId, {
+      date: '2026-05-24',
+      duration_minutes: 30,
+      description: 'Start',
+      task_ids: [t1],
+    });
+    const updated = updateSession(db, session.id, { task_ids: [] });
+    expect(updated.task_ids).to.deep.equal([]);
+  });
+
+  it('updateSession without task_ids preserves existing associations', () => {
+    const t1 = makeTask(db, projectId, 'Keep me');
+    const session = createSession(db, projectId, {
+      date: '2026-05-24',
+      duration_minutes: 30,
+      description: 'Start',
+      task_ids: [t1],
+    });
+    const updated = updateSession(db, session.id, { description: 'Changed' });
+    expect(updated.task_ids).to.deep.equal([t1]);
+  });
+
+  it('deleting a task removes its session_tasks row without deleting the session', () => {
+    const t1 = makeTask(db, projectId, 'Temporary');
+    const session = createSession(db, projectId, {
+      date: '2026-05-24',
+      duration_minutes: 30,
+      description: 'Has task',
+      task_ids: [t1],
+    });
+    db.prepare('DELETE FROM tasks WHERE id = ?').run(t1);
+    const found = getSession(db, session.id);
+    expect(found).to.not.be.null;
+    expect(found.task_ids).to.deep.equal([]);
   });
 });

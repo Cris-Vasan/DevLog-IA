@@ -128,16 +128,28 @@ function TaskCard({ task, onStatusChange, onEdit, onDelete }) {
   );
 }
 
-function SessionForm({ initial = {}, onSubmit, onCancel, loading }) {
+function SessionForm({ initial = {}, tasks = [], onSubmit, onCancel, loading }) {
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(initial.date || today);
   const [duration, setDuration] = useState(initial.duration_minutes || 60);
   const [description, setDescription] = useState(initial.description || '');
+  const [selectedTaskIds, setSelectedTaskIds] = useState(initial.task_ids || []);
+
+  function toggleTask(id) {
+    setSelectedTaskIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
     if (!date || !description.trim() || !duration) return;
-    onSubmit({ date, duration_minutes: Number(duration), description: description.trim() });
+    onSubmit({
+      date,
+      duration_minutes: Number(duration),
+      description: description.trim(),
+      task_ids: selectedTaskIds,
+    });
   }
 
   return (
@@ -173,6 +185,27 @@ function SessionForm({ initial = {}, onSubmit, onCancel, loading }) {
         onChange={(e) => setDescription(e.target.value)}
         required
       />
+      {tasks.length > 0 && (
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">Related tasks</label>
+          <div className="border border-slate-200 rounded divide-y divide-slate-100 max-h-40 overflow-y-auto">
+            {tasks.map((task) => (
+              <label
+                key={task.id}
+                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedTaskIds.includes(task.id)}
+                  onChange={() => toggleTask(task.id)}
+                  className="accent-slate-700"
+                />
+                <span className="text-slate-700 truncate">{task.title}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
           Cancel
@@ -185,11 +218,15 @@ function SessionForm({ initial = {}, onSubmit, onCancel, loading }) {
   );
 }
 
-function SessionCard({ session, onEdit, onDelete }) {
+function SessionCard({ session, tasks = [], onEdit, onDelete }) {
   const mins = session.duration_minutes;
   const duration = mins >= 60
     ? `${Math.floor(mins / 60)}h ${mins % 60 > 0 ? `${mins % 60}m` : ''}`.trim()
     : `${mins}m`;
+
+  const linkedTasks = (session.task_ids || [])
+    .map((id) => tasks.find((t) => t.id === id))
+    .filter(Boolean);
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-4 flex flex-col gap-1 shadow-sm">
@@ -205,6 +242,18 @@ function SessionCard({ session, onEdit, onDelete }) {
         </div>
       </div>
       <p className="text-slate-600 text-sm">{session.description}</p>
+      {linkedTasks.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1">
+          {linkedTasks.map((task) => (
+            <span
+              key={task.id}
+              className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200"
+            >
+              {task.title}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -343,6 +392,7 @@ export default function ProjectView() {
                 <SessionCard
                   key={session.id}
                   session={session}
+                  tasks={tasks}
                   onEdit={setEditingSession}
                   onDelete={setDeletingSession}
                 />
@@ -394,6 +444,7 @@ export default function ProjectView() {
       {showCreateSession && (
         <Modal title="Log Session" onClose={() => setShowCreateSession(false)}>
           <SessionForm
+            tasks={tasks}
             onSubmit={handleCreateSession}
             onCancel={() => setShowCreateSession(false)}
             loading={createSession.isPending}
@@ -405,6 +456,7 @@ export default function ProjectView() {
         <Modal title="Edit Session" onClose={() => setEditingSession(null)}>
           <SessionForm
             initial={editingSession}
+            tasks={tasks}
             onSubmit={handleEditSession}
             onCancel={() => setEditingSession(null)}
             loading={updateSession.isPending}
