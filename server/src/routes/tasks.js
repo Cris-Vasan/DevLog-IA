@@ -1,7 +1,7 @@
 'use strict';
 
 const { Router } = require('express');
-const { getProject } = require('../services/projects');
+const requireProject = require('../middleware/requireProject');
 const {
   listTasks,
   createTask,
@@ -13,27 +13,23 @@ const {
 
 module.exports = function tasksRouter(db) {
   const router = Router();
+  const withProject = requireProject(db);
 
   // GET /api/projects/:id/tasks
-  router.get('/projects/:id/tasks', (req, res) => {
-    const project = getProject(db, req.params.id);
-    if (!project) return res.status(404).json({ error: 'Project not found' });
-
+  router.get('/projects/:id/tasks', withProject, (req, res) => {
     const { status, priority, category } = req.query;
-    res.json(listTasks(db, project.id, { status, priority, category }));
+    res.json(listTasks(db, req.project.id, { status, priority, category }));
   });
 
   // POST /api/projects/:id/tasks
-  router.post('/projects/:id/tasks', (req, res) => {
-    const project = getProject(db, req.params.id);
-    if (!project) return res.status(404).json({ error: 'Project not found' });
+  router.post('/projects/:id/tasks', withProject, (req, res) => {
 
     const { title, description, priority, category } = req.body;
 
     const createErr = validateTaskCreate({ title, priority, category });
     if (createErr) return res.status(400).json(createErr);
 
-    res.status(201).json(createTask(db, project.id, { title: title.trim(), description, priority, category }));
+    res.status(201).json(createTask(db, req.project.id, { title: title.trim(), description, priority, category }));
   });
 
   // PUT /api/tasks/:id

@@ -1,23 +1,20 @@
 'use strict';
 
 const { Router } = require('express');
-const { getProject } = require('../services/projects');
+const requireProject = require('../middleware/requireProject');
 const { listSessions, createSession, updateSession, deleteSession } = require('../services/sessions');
 
 module.exports = function sessionsRouter(db) {
   const router = Router();
+  const withProject = requireProject(db);
 
   // GET /api/projects/:id/sessions
-  router.get('/projects/:id/sessions', (req, res) => {
-    const project = getProject(db, req.params.id);
-    if (!project) return res.status(404).json({ error: 'Project not found' });
-    res.json(listSessions(db, project.id));
+  router.get('/projects/:id/sessions', withProject, (req, res) => {
+    res.json(listSessions(db, req.project.id));
   });
 
   // POST /api/projects/:id/sessions
-  router.post('/projects/:id/sessions', (req, res) => {
-    const project = getProject(db, req.params.id);
-    if (!project) return res.status(404).json({ error: 'Project not found' });
+  router.post('/projects/:id/sessions', withProject, (req, res) => {
 
     const { date, duration_minutes, description } = req.body;
 
@@ -30,7 +27,7 @@ module.exports = function sessionsRouter(db) {
       return res.status(400).json({ error: 'duration_minutes must be a positive number' });
 
     res.status(201).json(
-      createSession(db, project.id, {
+      createSession(db, req.project.id, {
         date: String(date).trim(),
         duration_minutes,
         description: String(description).trim(),
