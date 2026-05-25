@@ -1,6 +1,8 @@
 const request = require('supertest');
 const { expect } = require('chai');
-const app = require('../src/app');
+const createApp = require('../src/app');
+
+const app = createApp();
 
 describe('Health', () => {
   it('GET /api/health returns 200 with status ok', async () => {

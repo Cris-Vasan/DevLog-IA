@@ -3,15 +3,16 @@
 const request = require('supertest');
 const { expect } = require('chai');
 const { createDb } = require('../src/db');
-const app = require('../src/app');
+const createApp = require('../src/app');
 
 describe('Tasks API', () => {
   let db;
+  let app;
   let projectId;
 
   before(() => {
     db = createDb(':memory:');
-    app.set('db', db);
+    app = createApp(db);
   });
 
   after(() => {

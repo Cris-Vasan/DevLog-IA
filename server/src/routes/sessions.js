@@ -4,61 +4,59 @@ const { Router } = require('express');
 const { getProject } = require('../services/projects');
 const { listSessions, createSession, updateSession, deleteSession } = require('../services/sessions');
 
-const router = Router();
+module.exports = function sessionsRouter(db) {
+  const router = Router();
 
-// GET /api/projects/:id/sessions
-router.get('/projects/:id/sessions', (req, res) => {
-  const db = req.app.get('db');
-  const project = getProject(db, req.params.id);
-  if (!project) return res.status(404).json({ error: 'Project not found' });
-
-  res.json(listSessions(db, project.id));
-});
-
-// POST /api/projects/:id/sessions
-router.post('/projects/:id/sessions', (req, res) => {
-  const db = req.app.get('db');
-  const project = getProject(db, req.params.id);
-  if (!project) return res.status(404).json({ error: 'Project not found' });
-
-  const { date, duration_minutes, description } = req.body;
-
-  if (!date || !String(date).trim()) return res.status(400).json({ error: 'date is required' });
-  if (duration_minutes === undefined || duration_minutes === null)
-    return res.status(400).json({ error: 'duration_minutes is required' });
-  if (!description || !String(description).trim())
-    return res.status(400).json({ error: 'description is required' });
-  if (typeof duration_minutes !== 'number' || duration_minutes <= 0)
-    return res.status(400).json({ error: 'duration_minutes must be a positive number' });
-
-  const session = createSession(db, project.id, {
-    date: String(date).trim(),
-    duration_minutes,
-    description: String(description).trim(),
+  // GET /api/projects/:id/sessions
+  router.get('/projects/:id/sessions', (req, res) => {
+    const project = getProject(db, req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    res.json(listSessions(db, project.id));
   });
-  res.status(201).json(session);
-});
 
-// PUT /api/sessions/:id
-router.put('/sessions/:id', (req, res) => {
-  const db = req.app.get('db');
-  const { duration_minutes } = req.body;
+  // POST /api/projects/:id/sessions
+  router.post('/projects/:id/sessions', (req, res) => {
+    const project = getProject(db, req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
 
-  if (duration_minutes !== undefined && (typeof duration_minutes !== 'number' || duration_minutes <= 0)) {
-    return res.status(400).json({ error: 'duration_minutes must be a positive number' });
-  }
+    const { date, duration_minutes, description } = req.body;
 
-  const session = updateSession(db, req.params.id, req.body);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
-  res.json(session);
-});
+    if (!date || !String(date).trim()) return res.status(400).json({ error: 'date is required' });
+    if (duration_minutes === undefined || duration_minutes === null)
+      return res.status(400).json({ error: 'duration_minutes is required' });
+    if (!description || !String(description).trim())
+      return res.status(400).json({ error: 'description is required' });
+    if (typeof duration_minutes !== 'number' || duration_minutes <= 0)
+      return res.status(400).json({ error: 'duration_minutes must be a positive number' });
 
-// DELETE /api/sessions/:id
-router.delete('/sessions/:id', (req, res) => {
-  const db = req.app.get('db');
-  const deleted = deleteSession(db, req.params.id);
-  if (!deleted) return res.status(404).json({ error: 'Session not found' });
-  res.status(204).send();
-});
+    res.status(201).json(
+      createSession(db, project.id, {
+        date: String(date).trim(),
+        duration_minutes,
+        description: String(description).trim(),
+      })
+    );
+  });
 
-module.exports = router;
+  // PUT /api/sessions/:id
+  router.put('/sessions/:id', (req, res) => {
+    const { duration_minutes } = req.body;
+
+    if (duration_minutes !== undefined && (typeof duration_minutes !== 'number' || duration_minutes <= 0)) {
+      return res.status(400).json({ error: 'duration_minutes must be a positive number' });
+    }
+
+    const session = updateSession(db, req.params.id, req.body);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    res.json(session);
+  });
+
+  // DELETE /api/sessions/:id
+  router.delete('/sessions/:id', (req, res) => {
+    const deleted = deleteSession(db, req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'Session not found' });
+    res.status(204).send();
+  });
+
+  return router;
+};

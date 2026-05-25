@@ -2,7 +2,9 @@
 
 const request = require('supertest');
 const { expect } = require('chai');
-const app = require('../src/app');
+const createApp = require('../src/app');
+
+const app = createApp();
 
 describe('Meta API', () => {
   it('GET /api/meta/enums returns canonical enum lists', async () => {
