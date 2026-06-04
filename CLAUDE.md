@@ -57,9 +57,13 @@ npm test -- --grep "Projects"   # run a single test suite by name
 
 ### Frontend (`/client`)
 
-- **API client** — a single module wrapping `fetch` with the base URL from `VITE_API_URL`. All hooks import from here.
-- **React Query hooks** — one custom hook per resource (`useProjects`, `useTasks`, `useSessions`, `useAIConvert`). These own all fetching, mutation, and cache invalidation.
-- **Pages** — four routes: Dashboard (project list), Project View (tasks + sessions for one project), Note Converter (AI conversion flow), Session Form.
+- **API client** (`src/api/client.js`) — single module wrapping `fetch` with base URL from `VITE_API_URL`. Exports `projectsApi`, `tasksApi`, `sessionsApi`, `aiApi`.
+- **React Query hooks** (`src/hooks/`) — one file per resource: `useProjects`, `useTasks`, `useSessions`, `useAI`. These own all fetching, mutation, and cache invalidation.
+- **Pages** (`src/pages/`) — three routes:
+  - `/` → `Dashboard` — project list with task count, link to Note Converter
+  - `/projects/:id` → `ProjectView` — Kanban board (Pending / In Progress / Done), filter controls, Work Sessions section
+  - `/convert` → `NoteConverter` — textarea input → `POST /api/ai/convert` → structured task card with title, description, priority/category badges
+- **Enums** (`src/lib/enums.js`) — client-side constants for labels and badge colours. Keep in sync with `server/src/constants.js`.
 - **UI** — shadcn/ui components. Keep page components thin; extract reusable pieces as needed.
 
 ### Database schema

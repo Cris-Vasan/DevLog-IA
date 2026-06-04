@@ -1,65 +1,52 @@
 # DevLog AI — Handoff Document
 **Date:** 2026-06-04  
 **Repo:** `E:\Trabajos\ids\DevLog-IA` | branch: `main` | remote: `https://github.com/Cris-Vasan/DevLog-IA`  
-**Last commit:** `5ced502` — Move issue 005 to done/
+**Last commit:** `095a2b0` — Add Note Converter page (frontend for issue 008)
 
 ---
 
-## Estado del proyecto: FEATURE-COMPLETE
+## Estado del proyecto: COMPLETO
 
-Todas las issues del PRD están implementadas y en `issues/done/`. No hay trabajo pendiente de desarrollo.
+Todas las páginas y el backend están implementados. No hay issues pendientes.
 
-| Issue | Título | Commit |
+| Área | Estado |
+|---|---|
+| Backend (issues 001–014) | ✅ completo — 147 tests passing |
+| Dashboard | ✅ lista de proyectos, crear/editar/borrar, link al Converter |
+| Project View | ✅ Kanban, filtros status/priority/category, Work Sessions |
+| Note Converter | ✅ `/convert` — textarea → Claude → task card |
+
+---
+
+## Páginas implementadas
+
+| Ruta | Componente | Descripción |
 |---|---|---|
-| 001 | Monorepo scaffold | prior sessions |
-| 002 | Database initialization | prior sessions |
-| 003 | Projects CRUD | prior sessions |
-| 004 | Tasks CRUD | prior sessions |
-| 005 | Task filtering UI (frontend) | `b4dfa42` |
-| 006 | Sessions CRUD | `6c1738a` |
-| 007 | Session–task associations | `18fc5d6` |
-| 008 | AI note conversion endpoint | `4398087` |
-| 009 | Enum constants extraction | `f006a81` |
-| 010 | Router factory pattern | `dcc5394` |
-| 011 | `requireProject` middleware | `e1db7ff` |
-| 012 | Task validation in service layer | `664f5e0` |
-| 013 | Service-layer unit tests | `769b85f` |
-| 014 | apiFetch header spread fix | `59452e2` |
-
-**147 server tests passing.** Todo en `origin/main`.
+| `/` | `Dashboard.jsx` | Lista de proyectos con task_count, botón "Note Converter" en header |
+| `/projects/:id` | `ProjectView.jsx` | Kanban + filtros + sessions |
+| `/convert` | `NoteConverter.jsx` | Input libre → `POST /api/ai/convert` → resultado con badges |
 
 ---
 
-## Qué podría venir a continuación
+## Posibles próximos pasos
 
-El PRD (`issues/prd.md`) está cubierto. Posibles siguientes pasos según el producto:
-
-- **Más tests de frontend** — actualmente no hay tests de componentes React (Vitest + Testing Library)
-- **E2E tests** — Playwright ya está disponible en el entorno; formalizar una suite
-- **Deploy** — preparar para producción (variables de entorno, build del cliente, servir estáticos desde Express)
-- **Mejoras UX** — paginación, búsqueda de tareas, exportar sesiones, etc.
+- **Tests de frontend** — no hay tests de componentes React (Vitest + Testing Library)
+- **E2E suite formal** — Playwright ya disponible en el entorno
+- **Deploy** — build del cliente, servir estáticos desde Express, variables de entorno en prod
+- **UX extras** — paginación, búsqueda, exportar sesiones, navegación entre proyectos desde el Converter
 
 ---
 
-## Cómo levantar el proyecto
+## Cómo levantar
 
 ```bash
 cd E:\Trabajos\ids\DevLog-IA
-# crear carpeta de datos si no existe
-mkdir data
-# variables de entorno
-cp .env.example .env   # y completar ANTHROPIC_API_KEY
-# levantar todo
-npm run dev            # server :3001 + Vite :5173
+mkdir data          # si no existe
+cp .env.example .env  # completar ANTHROPIC_API_KEY
+npm run dev         # server :3001 + Vite :5173
 ```
 
-## Notas de entorno
-
-- **Shell:** PowerShell + Bash (Bash usa paths POSIX `/e/Trabajos/...`)
-- **Git desde subdirectorios:** usar `git -C "E:/Trabajos/ids/DevLog-IA" <cmd>`
-- **CORS:** Vite proxy reenvía `/api` → `http://localhost:3001`. El cliente usa URLs relativas.
-- **data/:** debe existir antes de iniciar el servidor (`.gitignore` excluye `*.db`)
-- **Playwright:** disponible en el entorno para verificación visual
+La página Note Converter requiere `ANTHROPIC_API_KEY` en el `.env`. Sin ella el servidor devuelve 503 y la UI muestra el mensaje de error.
 
 ---
 
@@ -69,10 +56,22 @@ npm run dev            # server :3001 + Vite :5173
 |---|---|
 | Arquitectura y comandos | `CLAUDE.md` |
 | PRD completo | `issues/prd.md` |
-| Issues completadas | `issues/done/` |
+| Todas las issues | `issues/done/` |
 | Server entry | `server/src/index.js` |
-| Constants (enums) | `server/src/constants.js` |
+| Enums server | `server/src/constants.js` |
 | AI service | `server/src/services/ai.js` |
-| Client hooks | `client/src/hooks/` |
-| Project View (con filtros) | `client/src/pages/ProjectView.jsx` |
-| Skills toolkit | `.claude/skills/`, `.agents/skills/`, `skills-lock.json` |
+| API client | `client/src/api/client.js` |
+| Hooks | `client/src/hooks/` |
+| Enums client | `client/src/lib/enums.js` |
+| Dashboard | `client/src/pages/Dashboard.jsx` |
+| Project View | `client/src/pages/ProjectView.jsx` |
+| Note Converter | `client/src/pages/NoteConverter.jsx` |
+
+---
+
+## Notas de entorno
+
+- **Shell:** PowerShell + Bash (Bash usa paths POSIX `/e/Trabajos/...`)
+- **Git desde subdirectorios:** usar `git -C "E:/Trabajos/ids/DevLog-IA" <cmd>`
+- **CORS:** Vite proxy reenvía `/api` → `http://localhost:3001`
+- **data/:** debe existir antes de iniciar el servidor
