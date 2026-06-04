@@ -7,9 +7,12 @@
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
     "test": "npm run test:server",
-    "test:server": "npm --prefix server test"
+    "test:server": "npm --prefix server test",
+    "test:e2e": "playwright test",
+    "dev:client:e2e": "npm --prefix client run dev:e2e"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "concurrently": "^8.2.2"
   }
 }

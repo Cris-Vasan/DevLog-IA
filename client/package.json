@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:e2e": "vite --config vite.config.e2e.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
