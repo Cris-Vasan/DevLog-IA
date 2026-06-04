@@ -118,3 +118,21 @@ Work is broken into vertical slices in `issues/`. Read `issues/prd.md` for the f
 | 014 | apiFetch header spread fix | ✅ done |
 
 **All issues complete.** The project is feature-complete as of 2026-06-04.
+
+## E2E tests
+
+16 Playwright tests covering all three pages. Run with:
+
+```bash
+npm run test:e2e
+```
+
+Tests spin up isolated servers (API on `:3002`, Vite on `:5174`) with a dedicated DB (`data/e2e-test.db`). Each test resets state via the projects API before running.
+
+| File | Tests |
+|---|---|
+| `e2e/dashboard.spec.js` | 4 — create project, navigate, Note Converter link |
+| `e2e/project-view.spec.js` | 8 — Kanban, create task, status advance, filters, sessions |
+| `e2e/note-converter.spec.js` | 4 — disabled state, enable on input, error on no API key, reset |
+
+Supporting files: `playwright.config.js`, `e2e/helpers.js`, `e2e/global-setup.js`, `server/start-test.js`, `client/vite.config.e2e.js`.
