@@ -102,7 +102,7 @@ Work is broken into vertical slices in `issues/`. Read `issues/prd.md` for the f
 | 002 | Database initialization | ✅ done |
 | 003 | Projects CRUD | ✅ done |
 | 004 | Tasks CRUD | ✅ done |
-| 005 | Task filtering UI | **open** — `issues/005-task-filtering.md` |
+| 005 | Task filtering UI | ✅ done |
 | 006 | Sessions CRUD | ✅ done |
 | 007 | Session–task associations | ✅ done |
 | 008 | AI note conversion | ✅ done |
@@ -113,4 +113,4 @@ Work is broken into vertical slices in `issues/`. Read `issues/prd.md` for the f
 | 013 | Service-layer unit tests | ✅ done |
 | 014 | apiFetch header spread fix | ✅ done |
 
-**Only issue 005 remains.** It is purely frontend work — the backend already supports `?status=`, `?priority=`, `?category=` query params. A patch script is available at `server/apply-client-patch.js`.
+**All issues complete.** The project is feature-complete as of 2026-06-04.
