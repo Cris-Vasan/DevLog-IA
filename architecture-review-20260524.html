@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevLog AI — Architecture Review</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  .mermaid { background: transparent; }
+  .badge-strong { background: #fee2e2; color: #991b1b; }
+  .badge-worth { background: #fef3c7; color: #92400e; }
+  .badge-spec { background: #ede9fe; color: #5b21b6; }
+  .diagram-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .arrow { color: #94a3b8; }
+  .highlight { background: #fef9c3; border-radius: 3px; padding: 0 3px; }
+  .good { color: #16a34a; }
+  .bad { color: #dc2626; }
+  .file-tag {
+    font-family: monospace;
+    font-size: 11px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: #475569;
+  }
+</style>
+</head>
+<body class="bg-gray-50 text-slate-800 min-h-screen">
+
+<div class="max-w-5xl mx-auto px-6 py-12">
+
+  <!-- Header -->
+  <div class="mb-10">
+    <div class="text-xs font-mono text-slate-400 mb-2">2026-05-24 · DevLog AI</div>
+    <h1 class="text-4xl font-bold text-slate-900 mb-3">Architecture Review</h1>
+    <p class="text-slate-500 text-lg">Deepening opportunities — ranked by leverage and locality impact.</p>
+    <div class="mt-4 flex gap-3 text-sm">
+      <span class="badge-strong px-3 py-1 rounded-full font-medium text-xs">Strong</span>
+      <span class="badge-worth px-3 py-1 rounded-full font-medium text-xs">Worth exploring</span>
+      <span class="badge-spec px-3 py-1 rounded-full font-medium text-xs">Speculative</span>
+    </div>
+  </div>
+
+  <!-- ── CANDIDATE 1 ─────────────────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+    <div class="bg-red-50 border-b border-red-100 px-6 py-4 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-slate-900">1. Enum Constants — No Single Source of Truth</h2>
+      <span class="badge-strong px-3 py-1 rounded-full font-medium text-xs">Strong</span>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Files involved</div>
+        <div class="flex flex-wrap gap-2">
+          <span class="file-tag">server/src/services/tasks.js:3–5</span>
+          <span class="file-tag">server/src/routes/tasks.js:10–12</span>
+          <span class="file-tag">client/src/pages/ProjectView.jsx:7–24</span>
+          <span class="file-tag">server/src/db.js:19–21</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Problem</div>
+        <p class="text-slate-600 text-sm">Domain values — <code>priority</code>, <code>category</code>, <code>status</code> — are defined independently in the service, routes, frontend component, and DB schema. Four sources of truth. Adding "critical" priority means editing all four files and hoping the frontend gets a colour. The <strong>interface</strong> of this "enum knowledge" is as complex as its implementation (a list of strings) — a textbook shallow module.</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Solution</div>
+        <p class="text-slate-600 text-sm">Expose the valid values from the API at <code>GET /api/meta/enums</code> (or bake them into a shared <code>constants.js</code> on the server side and consume via the Vite proxy). The frontend fetches or imports the canonical list; colour maps live in one place keyed by value.</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Benefits</div>
+        <p class="text-slate-600 text-sm"><strong>Locality:</strong> one file to edit when a new category is added. <strong>Leverage:</strong> the API now self-documents its domain values; the client validates against them; tests can assert the enum surface hasn't changed.</p>
+      </div>
+      <!-- Before / After -->
+      <div class="grid grid-cols-2 gap-4 mt-2">
+        <div>
+          <div class="text-xs font-semibold text-red-500 mb-2">Before</div>
+          <div class="diagram-box">
+            <div class="bad">● tasks.js</div>
+            <div class="pl-3 text-slate-400">VALID_PRIORITIES = [...]</div>
+            <div class="pl-3 text-slate-400">VALID_CATEGORIES = [...]</div>
+            <br>
+            <div class="bad">● routes/tasks.js</div>
+            <div class="pl-3 text-slate-400">import { VALID_PRIORITIES... }</div>
+            <div class="pl-3 text-slate-400">+ route-level validation</div>
+            <br>
+            <div class="bad">● ProjectView.jsx</div>
+            <div class="pl-3 text-slate-400">const PRIORITIES = [...]  ← copy</div>
+            <div class="pl-3 text-slate-400">const PRIORITY_COLORS = {...}</div>
+            <br>
+            <div class="bad">● db.js CHECK constraints</div>
+            <div class="pl-3 text-slate-400">'low','medium','high' ← copy</div>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-green-600 mb-2">After</div>
+          <div class="diagram-box">
+            <div class="good">● server/src/constants.js  ← single source</div>
+            <div class="pl-3 text-slate-400">PRIORITIES, CATEGORIES, STATUSES</div>
+            <div class="pl-3 text-slate-400">PRIORITY_COLORS, CATEGORY_COLORS</div>
+            <br>
+            <div class="text-slate-500">● tasks.js</div>
+            <div class="pl-3 text-slate-400">import { VALID_PRIORITIES } from '../constants'</div>
+            <br>
+            <div class="text-slate-500">● routes/tasks.js</div>
+            <div class="pl-3 text-slate-400">import { VALID_PRIORITIES } from '../constants'</div>
+            <br>
+            <div class="text-slate-500">● ProjectView.jsx</div>
+            <div class="pl-3 text-slate-400">import via /api/meta/enums or shared bundle</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CANDIDATE 2 ─────────────────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+    <div class="bg-red-50 border-b border-red-100 px-6 py-4 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-slate-900">2. DB Connection Hidden in Express App State</h2>
+      <span class="badge-strong px-3 py-1 rounded-full font-medium text-xs">Strong</span>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Files involved</div>
+        <div class="flex flex-wrap gap-2">
+          <span class="file-tag">server/src/index.js:10</span>
+          <span class="file-tag">server/src/routes/projects.js:15,24,29,35,41</span>
+          <span class="file-tag">server/src/routes/tasks.js:19,30,52,72</span>
+          <span class="file-tag">server/test/projects.test.js:13</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Problem</div>
+        <p class="text-slate-600 text-sm">Every route handler retrieves the database via <code>req.app.get('db')</code> — a string-keyed lookup on the Express app object. This is a runtime dependency hidden behind an opaque key. Tests must manually call <code>app.set('db', db)</code> before each suite. The <strong>seam</strong> is real (routes don't create their own db) but it's a bad seam: the interface is the entire Express app rather than a narrow db-shaped thing.</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Solution</div>
+        <p class="text-slate-600 text-sm">Use a router factory: each router module exports a function that accepts <code>db</code> and returns the configured router. <code>app.js</code> calls <code>projectsRouter(db)</code>. The dependency is explicit, typed, and injected at wiring time — not fetched at request time.</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Benefits</div>
+        <p class="text-slate-600 text-sm"><strong>Locality:</strong> the db dependency is visible at the module's interface — no hidden <code>app.get()</code> calls. <strong>Leverage:</strong> tests pass a real in-memory db directly to the router, with no app.set() ceremony. Extending to a second db or logger follows the same pattern.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mt-2">
+        <div>
+          <div class="text-xs font-semibold text-red-500 mb-2">Before</div>
+          <div class="diagram-box">
+<pre class="text-xs">// app.js
+app.set('db', db)
+app.use('/api', projectsRouter)
+
+// routes/projects.js
+router.get('/', (req, res) => {
+  const db = req.app.get('db') <span class="bad">← hidden</span>
+  const projects = listProjects(db)
+  ...
+})</pre>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-green-600 mb-2">After</div>
+          <div class="diagram-box">
+<pre class="text-xs">// app.js
+app.use('/api', projectsRouter(db)) <span class="good">← explicit</span>
+
+// routes/projects.js
+module.exports = function(db) {
+  const router = Router()
+  router.get('/', (req, res) => {
+    const projects = listProjects(db)
+    ...
+  })
+  return router
+}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CANDIDATE 3 ─────────────────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+    <div class="bg-amber-50 border-b border-amber-100 px-6 py-4 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-slate-900">3. Parent-Exists Check Duplicated in Every Child Route</h2>
+      <span class="badge-worth px-3 py-1 rounded-full font-medium text-xs">Worth exploring</span>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Files involved</div>
+        <div class="flex flex-wrap gap-2">
+          <span class="file-tag">server/src/routes/tasks.js:18–26</span>
+          <span class="file-tag">server/src/routes/tasks.js:29–32</span>
+          <span class="file-tag">server/src/routes/sessions.js (upcoming)</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Problem</div>
+        <p class="text-slate-600 text-sm">Both the GET and POST handlers for tasks call <code>getProject(db, req.params.id)</code> before doing any work. Sessions (issue 006) will repeat this pattern. Each route handler owns its own copy of "verify the project exists, return 404 if not" — three identical error responses, three identical <code>getProject</code> calls.</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Solution</div>
+        <p class="text-slate-600 text-sm">An Express middleware <code>requireProject(db)</code> that reads <code>req.params.id</code>, verifies the project, attaches it as <code>req.project</code>, and calls <code>next()</code> or returns 404. All child routes use it; none repeat the check.</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Benefits</div>
+        <p class="text-slate-600 text-sm"><strong>Locality:</strong> project-existence logic lives once. <strong>Leverage:</strong> sessions and future child routes get it for free. Tests for the middleware cover all routes at once.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mt-2">
+        <div>
+          <div class="text-xs font-semibold text-red-500 mb-2">Before — pattern repeats</div>
+          <div class="diagram-box">
+<pre class="text-xs">router.get('/projects/:id/tasks', (req, res) => {
+  const project = getProject(db, req.params.id) <span class="bad">← copy</span>
+  if (!project) return res.status(404).json(...)
+  ...
+})
+
+router.post('/projects/:id/tasks', (req, res) => {
+  const project = getProject(db, req.params.id) <span class="bad">← copy</span>
+  if (!project) return res.status(404).json(...)
+  ...
+})</pre>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-green-600 mb-2">After — middleware</div>
+          <div class="diagram-box">
+<pre class="text-xs">function requireProject(db) {
+  return (req, res, next) => {
+    req.project = getProject(db, req.params.id)
+    if (!req.project) return res.status(404).json(...)
+    next()
+  }
+}
+
+router.get('/projects/:id/tasks',
+  requireProject(db), <span class="good">← one place</span>
+  (req, res) => { /* use req.project */ }
+)</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CANDIDATE 4 ─────────────────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+    <div class="bg-amber-50 border-b border-amber-100 px-6 py-4 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-slate-900">4. Validation Split Between Route Layer and DB Constraints</h2>
+      <span class="badge-worth px-3 py-1 rounded-full font-medium text-xs">Worth exploring</span>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Files involved</div>
+        <div class="flex flex-wrap gap-2">
+          <span class="file-tag">server/src/routes/tasks.js:39–63</span>
+          <span class="file-tag">server/src/db.js:19–21</span>
+          <span class="file-tag">server/src/services/tasks.js</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Problem</div>
+        <p class="text-slate-600 text-sm">Enum validation lives in the route (returns HTTP 400) and in the DB schema (throws an exception). The service layer — the natural home for "is this a valid task?" — has no validation of its own. POST and PUT handlers both validate, but with slightly different logic. If the route validation is bypassed, a DB exception surfaces instead of a clean 400.</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Solution</div>
+        <p class="text-slate-600 text-sm">Move validation into the service functions as <code>validate(fields)</code> — returns <code>{ valid: true }</code> or <code>{ error: '...' }</code>. Routes call <code>validate()</code> and map the result to HTTP. The DB constraints remain as a safety net. Tests for <code>validate()</code> are pure functions: no HTTP, no db.</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Benefits</div>
+        <p class="text-slate-600 text-sm"><strong>Locality:</strong> validation logic is colocated with the domain model. <strong>Leverage:</strong> route handlers become thin — they validate, call a service, return JSON. Pure validation tests are fast and exhaustive.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mt-2">
+        <div>
+          <div class="text-xs font-semibold text-red-500 mb-2">Before</div>
+          <div class="diagram-box">
+            <div class="text-slate-500">Route: POST /tasks</div>
+            <div class="pl-3 bad">if (!title) → 400</div>
+            <div class="pl-3 bad">if (!VALID_PRIORITIES.includes) → 400</div>
+            <div class="pl-3 bad">if (!VALID_CATEGORIES.includes) → 400</div>
+            <div class="pl-3 text-slate-400">→ createTask(db, ...)</div>
+            <br>
+            <div class="text-slate-500">Route: PUT /tasks/:id</div>
+            <div class="pl-3 bad">if (priority && !VALID...) → 400  ← different!</div>
+            <div class="pl-3 bad">if (status && !VALID...) → 400</div>
+            <div class="pl-3 text-slate-400">→ updateTask(db, ...)</div>
+            <br>
+            <div class="text-slate-500 mt-2">DB: CHECK constraint</div>
+            <div class="pl-3 bad">→ throws exception if bypassed</div>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-green-600 mb-2">After</div>
+          <div class="diagram-box">
+            <div class="good">services/tasks.js</div>
+            <div class="pl-3 text-slate-400">validateCreate(fields) → {error?}</div>
+            <div class="pl-3 text-slate-400">validateUpdate(fields) → {error?}</div>
+            <br>
+            <div class="text-slate-500">Route: POST /tasks</div>
+            <div class="pl-3 good">const err = validateCreate(req.body)</div>
+            <div class="pl-3 good">if (err) return res.status(400).json(err)</div>
+            <div class="pl-3 text-slate-400">→ createTask(db, ...)</div>
+            <br>
+            <div class="text-slate-500">Route: PUT /tasks/:id</div>
+            <div class="pl-3 good">const err = validateUpdate(req.body)</div>
+            <div class="pl-3 good">if (err) return res.status(400).json(err)</div>
+            <div class="pl-3 text-slate-400">→ updateTask(db, ...)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CANDIDATE 5 ─────────────────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+    <div class="bg-amber-50 border-b border-amber-100 px-6 py-4 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-slate-900">5. Services Untested in Isolation</h2>
+      <span class="badge-worth px-3 py-1 rounded-full font-medium text-xs">Worth exploring</span>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Files involved</div>
+        <div class="flex flex-wrap gap-2">
+          <span class="file-tag">server/src/services/projects.js</span>
+          <span class="file-tag">server/src/services/tasks.js</span>
+          <span class="file-tag">server/test/projects.test.js</span>
+          <span class="file-tag">server/test/tasks.test.js</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Problem</div>
+        <p class="text-slate-600 text-sm">All 37 tests go through the HTTP stack via <code>supertest</code>. Service functions — <code>listTasks()</code>, <code>updateProject()</code>, <code>createTask()</code> — are never tested directly. This means: (a) tests are slower than needed, (b) a bug in <code>listTasks()</code>'s filter logic requires an HTTP call to uncover, (c) refactoring the route without touching the service can still break tests, making it hard to locate the regression.</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Solution</div>
+        <p class="text-slate-600 text-sm">Keep the integration tests (they're valuable). Add <code>server/test/services/tasks.test.js</code> that imports service functions directly and calls them with an in-memory db. These tests are pure, fast, and pinpoint failures to the service layer.</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Benefits</div>
+        <p class="text-slate-600 text-sm"><strong>Leverage:</strong> the service interface becomes the test surface — as it should be. The route tests shrink to verifying HTTP mapping (status codes, headers). <strong>Locality:</strong> a regression in <code>listTasks</code> filtering fails in exactly one place.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mt-2">
+        <div>
+          <div class="text-xs font-semibold text-red-500 mb-2">Before — all tests are HTTP</div>
+          <div class="diagram-box">
+<pre class="text-xs">it('GET ?status= returns matching tasks', async () => {
+  const res = await request(app)  <span class="bad">← HTTP roundtrip</span>
+    .get(`/api/projects/${id}/tasks?status=done`)
+  expect(res.body).to.have.lengthOf(1)
+})</pre>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs font-semibold text-green-600 mb-2">After — service tests are direct</div>
+          <div class="diagram-box">
+<pre class="text-xs"><span class="good">// test/services/tasks.test.js</span>
+it('listTasks filters by status', () => {
+  const tasks = listTasks(db, pid, { status: 'done' })
+  expect(tasks).to.have.lengthOf(1)  <span class="good">← direct</span>
+})
+
+<span class="text-slate-400">// test/tasks.test.js (HTTP)</span>
+it('GET ?status= returns 200', async () => {
+  const res = await request(app).get(...)
+  expect(res.status).to.equal(200)  <span class="text-slate-400">← just HTTP</span>
+})</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CANDIDATE 6 ─────────────────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+    <div class="bg-violet-50 border-b border-violet-100 px-6 py-4 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-slate-900">6. <code>apiFetch()</code> — Shallow Wrapper with Bad Ergonomics</h2>
+      <span class="badge-spec px-3 py-1 rounded-full font-medium text-xs">Speculative</span>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Files involved</div>
+        <div class="flex flex-wrap gap-2">
+          <span class="file-tag">client/src/api/client.js:3–16</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Problem</div>
+        <p class="text-slate-600 text-sm">The <code>apiFetch()</code> function spreads <code>...options</code> <em>after</em> setting <code>headers</code> — any caller passing <code>headers</code> will silently override <code>Content-Type</code>. Error handling is generic (doesn't distinguish 400 from 500). The abstraction is thin enough that callers still need to know path strings, JSON serialisation, and the 204 special case.</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Solution</div>
+        <p class="text-slate-600 text-sm">Fix the header spread order now (1-line fix). Speculative: deepen the client by adding error classification (<code>{ status, error, isValidation }</code>) so hooks can distinguish "show field errors" from "show toast".</p>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Benefits</div>
+        <p class="text-slate-600 text-sm"><strong>Locality:</strong> one place for error shape decisions. Low priority — the app is single-user and errors are rare. The header bug is the concrete fix; the rest is speculative.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DEPENDENCY DIAGRAM ─────────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+    <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
+      <h2 class="text-lg font-semibold text-slate-900">Current Module Dependency Map</h2>
+      <p class="text-sm text-slate-400 mt-1">Arrows show data flow. Red = identified friction.</p>
+    </div>
+    <div class="px-6 py-5">
+      <div class="mermaid">
+graph TD
+    subgraph Server
+      idx[index.js] -->|app.set db| app[app.js]
+      app -->|mounts| pr[routes/projects.js]
+      app -->|mounts| tr[routes/tasks.js]
+      pr -->|req.app.get db| ps[services/projects.js]
+      tr -->|req.app.get db| ps
+      tr -->|req.app.get db| ts[services/tasks.js]
+      ps --> db[(SQLite)]
+      ts --> db
+    end
+
+    subgraph Frontend
+      pv[ProjectView.jsx] --> uth[useTasks.js]
+      dash[Dashboard.jsx] --> uph[useProjects.js]
+      uth --> ac[api/client.js]
+      uph --> ac
+    end
+
+    style pr fill:#fee2e2,stroke:#ef4444
+    style tr fill:#fee2e2,stroke:#ef4444
+    style ts fill:#fef3c7,stroke:#f59e0b
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TOP RECOMMENDATION ────────────────────────────────────── -->
+  <div class="bg-slate-900 text-white rounded-xl p-6 mb-6">
+    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Top Recommendation</div>
+    <h2 class="text-xl font-bold mb-3">Start with #2 — Router Factory (DB Injection)</h2>
+    <p class="text-slate-300 text-sm mb-4">
+      It's the smallest change with the widest impact. Right now every route handler is coupled to Express app state for its core dependency. The router factory pattern eliminates this seam and makes the tests simpler at the same time — no more <code>app.set('db', db)</code> boilerplate in <em>every</em> test suite. Sessions (issue 006) will add a third route module; fixing the pattern now costs one refactor instead of two.
+    </p>
+    <p class="text-slate-400 text-sm">
+      After that: <strong>#1</strong> (enum constants) before implementing filtering (issue 005) — adding filter controls in the UI will expose the frontend duplication immediately. <strong>#3</strong> (requireProject middleware) naturally follows when sessions arrive. <strong>#4</strong> (validation in services) and <strong>#5</strong> (service unit tests) can accompany any new feature slice.
+    </p>
+    <div class="mt-4 pt-4 border-t border-slate-700 text-xs text-slate-500">
+      Candidates ranked by: leverage (how many callers benefit) × locality (how concentrated the change is) × timing (how soon the friction compounds).
+    </div>
+  </div>
+
+</div>
+
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral' });</script>
+</body>
+</html>
