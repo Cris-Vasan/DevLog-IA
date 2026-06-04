@@ -24,6 +24,67 @@ function Modal({ title, children, onClose }) {
   );
 }
 
+function TaskFilters({ filters, onChange }) {
+  function set(key, value) {
+    if (value === '') {
+      const next = { ...filters };
+      delete next[key];
+      onChange(next);
+    } else {
+      onChange({ ...filters, [key]: value });
+    }
+  }
+
+  const hasFilters = Object.keys(filters).length > 0;
+  const selectClass =
+    'border border-slate-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white';
+  const activeClass = 'border-slate-500 ring-1 ring-slate-400';
+
+  return (
+    <div className="flex gap-2 items-center flex-wrap mb-6">
+      <span className="text-xs text-slate-500 font-medium mr-1">Filter:</span>
+      <select
+        className={`${selectClass} ${filters.status ? activeClass : ''}`}
+        value={filters.status || ''}
+        onChange={(e) => set('status', e.target.value)}
+      >
+        <option value="">All statuses</option>
+        {STATUSES.map((s) => (
+          <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+        ))}
+      </select>
+      <select
+        className={`${selectClass} ${filters.priority ? activeClass : ''}`}
+        value={filters.priority || ''}
+        onChange={(e) => set('priority', e.target.value)}
+      >
+        <option value="">All priorities</option>
+        {PRIORITIES.map((p) => (
+          <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+        ))}
+      </select>
+      <select
+        className={`${selectClass} ${filters.category ? activeClass : ''}`}
+        value={filters.category || ''}
+        onChange={(e) => set('category', e.target.value)}
+      >
+        <option value="">All categories</option>
+        {CATEGORIES.map((c) => (
+          <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+        ))}
+      </select>
+      {hasFilters && (
+        <button
+          className="text-xs text-slate-500 hover:text-slate-800 underline ml-1"
+          onClick={() => onChange({})}
+        >
+          Clear filters
+        </button>
+      )}
+    </div>
+  );
+}
+
 function TaskForm({ initial = {}, onSubmit, onCancel, loading }) {
   const [title, setTitle] = useState(initial.title || '');
   const [description, setDescription] = useState(initial.description || '');
@@ -261,7 +322,11 @@ function SessionCard({ session, tasks = [], onEdit, onDelete }) {
 export default function ProjectView() {
   const { id } = useParams();
   const { data: project, isLoading: loadingProject, isError: projectError } = useProject(id);
-  const { data: tasks = [], isLoading: loadingTasks } = useTasks(id);
+
+  const [filters, setFilters] = useState({});
+  const activeFilters = Object.keys(filters).length > 0 ? filters : undefined;
+
+  const { data: tasks = [], isLoading: loadingTasks } = useTasks(id, activeFilters);
   const createTask = useCreateTask(id);
   const updateTask = useUpdateTask(id);
   const deleteTask = useDeleteTask(id);
@@ -320,6 +385,8 @@ export default function ProjectView() {
     deleteSession.mutate(deletingSession.id, { onSuccess: () => setDeletingSession(null) });
   }
 
+  const hasFilters = !!activeFilters;
+
   const tasksByStatus = STATUSES.reduce((acc, s) => {
     acc[s] = tasks.filter((t) => t.status === s);
     return acc;
@@ -341,10 +408,16 @@ export default function ProjectView() {
           <Button onClick={() => setShowCreate(true)}>New Task</Button>
         </div>
 
+        <TaskFilters filters={filters} onChange={setFilters} />
+
         {loadingTasks ? (
           <p className="text-slate-400 text-center py-12">Loading tasks…</p>
         ) : tasks.length === 0 ? (
-          <p className="text-slate-400 text-center py-12">No tasks yet. Create one to get started.</p>
+          <p className="text-slate-400 text-center py-12">
+            {hasFilters
+              ? 'No tasks match the active filters.'
+              : 'No tasks yet. Create one to get started.'}
+          </p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-3">
             {STATUSES.map((status) => (
