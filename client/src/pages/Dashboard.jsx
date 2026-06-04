@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useProjects, useCreateProject, useUpdateProject, useDeleteProject } from '../hooks/useProjects';
 import { Button } from '@/components/ui/button';
 
@@ -95,7 +95,12 @@ export default function Dashboard() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-slate-900">DevLog AI</h1>
-          <Button onClick={() => setShowCreate(true)}>New Project</Button>
+          <div className="flex gap-2">
+            <Link to="/convert">
+              <Button variant="outline">Note Converter</Button>
+            </Link>
+            <Button onClick={() => setShowCreate(true)}>New Project</Button>
+          </div>
         </div>
 
         {projects.length === 0 ? (

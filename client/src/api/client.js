@@ -46,3 +46,7 @@ export const sessionsApi = {
     apiFetch(`/api/sessions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   remove: (id) => apiFetch(`/api/sessions/${id}`, { method: 'DELETE' }),
 };
+
+export const aiApi = {
+  convert: (note) => apiFetch('/api/ai/convert', { method: 'POST', body: JSON.stringify({ note }) }),
+};
