@@ -2,9 +2,10 @@ const express = require('express');
 const projectsRouter = require('./routes/projects');
 const tasksRouter = require('./routes/tasks');
 const sessionsRouter = require('./routes/sessions');
+const aiRouter = require('./routes/ai');
 const { VALID_PRIORITIES, VALID_CATEGORIES, VALID_STATUSES } = require('./constants');
 
-function createApp(db) {
+function createApp(db, anthropicClient = null) {
   const app = express();
 
   app.use(express.json());
@@ -20,6 +21,7 @@ function createApp(db) {
   app.use('/api/projects', projectsRouter(db));
   app.use('/api', tasksRouter(db));
   app.use('/api', sessionsRouter(db));
+  app.use('/api', aiRouter(anthropicClient));
 
   return app;
 }

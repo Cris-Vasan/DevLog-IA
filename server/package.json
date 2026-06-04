@@ -9,6 +9,7 @@
     "test": "mocha test/**/*.test.js --exit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.3",
     "better-sqlite3": "^12.9.0",
     "devlog-ai": "file:..",
     "dotenv": "^16.3.1",
