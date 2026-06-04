@@ -10,10 +10,15 @@ DevLog AI — a full-stack web app for individual developers to organize project
 
 ```
 devlog-ai/
-  client/       ← React + Vite + Tailwind CSS + shadcn/ui + React Query
-  server/       ← Node.js + Express + SQLite (better-sqlite3)
-  issues/       ← PRD and vertical-slice issue files
-  package.json  ← root scripts only (no shared code)
+  client/                  ← React + Vite + Tailwind CSS + shadcn/ui + React Query
+  server/                  ← Node.js + Express + SQLite (better-sqlite3)
+  issues/                  ← PRD and vertical-slice issue files (done/ for completed)
+  .agents/skills/          ← mattpocock/skills toolkit (agent skill definitions)
+  .claude/skills/          ← Claude Code skill definitions
+  skills-lock.json         ← skills version lock
+  devlog-ai-handoff.md     ← latest session handoff document
+  architecture-review-*    ← architecture analysis reports
+  package.json             ← root scripts only (no shared code)
 ```
 
 ## Commands
@@ -43,10 +48,12 @@ npm test -- --grep "Projects"   # run a single test suite by name
 
 ### Backend (`/server`)
 
-- **Entry point** initializes the DB connection, registers Express routes, and starts the server.
-- **Database module** opens the SQLite file at `DATABASE_PATH` (from env), runs schema migrations on startup, and exports a single shared connection used by all services.
-- **Service layer** (`projects`, `tasks`, `sessions`, `ai`) contains all business logic and SQL queries. Routes are thin — they validate input, call a service, and return JSON.
-- **AI service** calls the Anthropic API with a server-side prompt and returns `{ title, description, priority, category }`. The API key never leaves the server.
+- **Entry point** (`src/index.js`) initializes the DB connection, creates the Anthropic client if `ANTHROPIC_API_KEY` is set, registers Express routes, and starts the server.
+- **Database module** (`src/db.js`) opens the SQLite file at `DATABASE_PATH` (from env), runs schema migrations on startup, and exports a single shared connection used by all services.
+- **Constants** (`src/constants.js`) — single source of truth for enum arrays (`VALID_PRIORITIES`, `VALID_CATEGORIES`, `VALID_STATUSES`). Import from here; never hardcode enum strings elsewhere.
+- **Service layer** (`src/services/`: `projects`, `tasks`, `sessions`, `ai`) contains all business logic and SQL queries. Routes are thin — they validate input, call a service, and return JSON.
+- **`requireProject` middleware** (`src/middleware/requireProject.js`) — looks up a project by `:id`, attaches it to `req.project`, and returns 404 if not found. Used by all project-scoped routes.
+- **AI service** (`src/services/ai.js`) — the Anthropic client is injected at startup (not imported directly). Returns `{ title, description, priority, category }`. The API key never leaves the server. Returns 503 if the client is not configured.
 
 ### Frontend (`/client`)
 
@@ -87,14 +94,23 @@ See `.env.example` for the full template.
 
 ## Issue tracking
 
-Work is broken into vertical slices in `issues/`. Read `issues/prd.md` for the full product spec. Each `issues/NNN-*.md` file is a self-contained implementation unit with acceptance criteria and dependency info.
+Work is broken into vertical slices in `issues/`. Read `issues/prd.md` for the full product spec. Completed issues are in `issues/done/`.
 
-Current slices (in dependency order):
-1. `001-monorepo-scaffold` — repo setup, no blockers
-2. `002-database-initialization` — SQLite schema, blocked by 001
-3. `003-projects-crud` — projects API + Dashboard UI, blocked by 002
-4. `004-tasks-crud` — tasks API + Project View UI, blocked by 003
-5. `005-task-filtering` — filter controls, blocked by 004
-6. `006-sessions-crud` — sessions API + UI, blocked by 003
-7. `007-session-task-associations` — session↔task join, blocked by 004 + 006
-8. `008-ai-note-conversion` — AI endpoint + Note Converter UI, blocked by 004
+| Issue | Title | Status |
+|---|---|---|
+| 001 | Monorepo scaffold | ✅ done |
+| 002 | Database initialization | ✅ done |
+| 003 | Projects CRUD | ✅ done |
+| 004 | Tasks CRUD | ✅ done |
+| 005 | Task filtering UI | **open** — `issues/005-task-filtering.md` |
+| 006 | Sessions CRUD | ✅ done |
+| 007 | Session–task associations | ✅ done |
+| 008 | AI note conversion | ✅ done |
+| 009 | Enum constants extraction | ✅ done |
+| 010 | Router factory pattern | ✅ done |
+| 011 | `requireProject` middleware | ✅ done |
+| 012 | Task validation in service layer | ✅ done |
+| 013 | Service-layer unit tests | ✅ done |
+| 014 | apiFetch header spread fix | ✅ done |
+
+**Only issue 005 remains.** It is purely frontend work — the backend already supports `?status=`, `?priority=`, `?category=` query params. A patch script is available at `server/apply-client-patch.js`.
